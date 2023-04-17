@@ -60,6 +60,15 @@ function createRequestQueue(user_id: number, played_beatmap_count: number): Requ
   return request_queue;
 }
 
+async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: string) {
+  const resp = await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  console.log(resp.data);
+}
+
 async function getMostPlayedBeatmaps(request: Request, token: string): Promise<Number[]> {
   const resp = await axios.get(`${API_URL}/users/${request.user_id}/beatmapsets/most_played?limit=${request.limit}&offset=${request.offset}`, {
     headers: {
@@ -90,11 +99,12 @@ async function getPlayedBeatmapIDs(request_queue: Request[], token: string): Pro
 (async () => {
   const user_id = 14852499;
   const token = await getUserOAUTHToken();
-  const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
+  //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
-  // Since we will be making a lot of requests, it makes sense to queue them
-  const request_queue = createRequestQueue(user_id, played_beatmap_count);
-  const played_map_ids = await getPlayedBeatmapIDs(request_queue, token);
-  console.log(played_map_ids, played_map_ids.length);
+  //// Since we will be making a lot of requests, it makes sense to queue them
+  //const request_queue = createRequestQueue(user_id, played_beatmap_count);
+  //const played_map_ids = await getPlayedBeatmapIDs(request_queue, token);
+  //console.log(played_map_ids, played_map_ids.length);
+  getUserBeatmapScore(user_id, 1872396, token);
 })()
 
