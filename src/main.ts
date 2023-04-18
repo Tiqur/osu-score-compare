@@ -12,6 +12,37 @@ interface Request {
   offset: number
 }
 
+interface Beatmap {
+  id: number,
+  url: string,
+  version: string,
+  difficulty: number,
+  last_updated: EpochTimeStamp,
+  status: string,
+  od: number,
+  ar: number,
+  cs: number,
+  hp: number,
+  bpm: number, 
+  count_circles: number,
+  count_sliders: number,
+  count_spinners: number,
+}
+
+interface Score {
+  id: number,
+  accuracy: number,
+  date: EpochTimeStamp,
+  max_combo: number,
+  mods: string[],
+  pp: number,
+  rank: string,
+  score: number,
+  count_50: number,
+  count_100: number,
+  count_300: number,
+}
+
 // Read enviornment variables
 dotenv.config();
 
@@ -65,12 +96,16 @@ function createRequestQueue(user_id: number, played_beatmap_count: number): Requ
 }
 
 async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: string) {
-  const resp = await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
-  });
-  console.log(resp.data);
+  try {
+    const resp = await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
+      headers: {
+        "Authorization": `Bearer ${token}`
+      }
+    });
+    return resp.data;
+  } catch(err) {
+    console.error(`Error: ${beatmap_id}`);
+  }
 }
 
 async function getMostPlayedBeatmaps(request: Request, token: string): Promise<BeatmapPlaycountDict> {
@@ -82,7 +117,7 @@ async function getMostPlayedBeatmaps(request: Request, token: string): Promise<B
   });
   
   for (const map of resp.data) {
-    dict[map.beatmap_id] = map.count;
+    dict[parseInt(map.beatmap_id)] = map.count;
   }
 
   return dict;
@@ -105,17 +140,56 @@ async function getPlayedBeatmapDict(request_queue: Request[], token: string): Pr
   return beatmap_playcount_dict;
 }
 
+async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
+  const scores: any[] = [];
+  const promises = [];
+  let index = 0;
+
+  for (const key in map_dict) {
+    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
+    if (true) {
+      const map_id = parseInt(key);
+      const play_count = map_dict[key];
+      promises.push(new Promise(resolve => {
+        setTimeout(async () => {
+          const score = await getUserBeatmapScore(user_id, map_id, token);
+          scores.push(score);
+          resolve(null);
+        }, (index++)*100)
+      }))
+    }
+  }
+
+  await Promise.all(promises);
+  return scores;
+}
+
+async function getBeatmap(map_id: number, token: string) {
+  const resp = await axios.get(`${API_URL}/beatmaps/lookup?id=${map_id}`, {
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  console.log(resp.data);
+}
 
 (async () => {
   const user_id = 14852499;
   const token = await getUserOAUTHToken();
-  const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
+  //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
-  // Since we will be making a lot of requests, it makes sense to queue them
-  const request_queue = createRequestQueue(user_id, played_beatmap_count);
-  const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
+  //// Since we will be making a lot of requests, it makes sense to queue them
+  //const request_queue = createRequestQueue(user_id, played_beatmap_count);
+
+  //// Return dictionary of ids ( key ) and play_count ( so it can be cached and compared against in future requests to determin if we should requst more user scores for that particular beatmap )
+  //const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
+
+  //const scores = getAllUserScores(user_id, beatmap_dict, token);
+  //console.log(scores);
+  
+  console.log(await getUserBeatmapScore(user_id, 1872396, token));
+
+
   //console.log(played_map_ids, played_map_ids.length);
-  //getUserBeatmapScore(user_id, 1872396, token);
-  console.log(beatmap_dict);
 })()
 
