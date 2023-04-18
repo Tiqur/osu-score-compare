@@ -1,6 +1,10 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
 
+interface BeatmapPlaycountDict {
+  [key: number]: number;
+}
+
 interface Request {
   type: 'most_played',
   user_id: number,
@@ -69,42 +73,49 @@ async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: s
   console.log(resp.data);
 }
 
-async function getMostPlayedBeatmaps(request: Request, token: string): Promise<Number[]> {
+async function getMostPlayedBeatmaps(request: Request, token: string): Promise<BeatmapPlaycountDict> {
+  const dict: BeatmapPlaycountDict = {};
   const resp = await axios.get(`${API_URL}/users/${request.user_id}/beatmapsets/most_played?limit=${request.limit}&offset=${request.offset}`, {
     headers: {
       "Authorization": `Bearer ${token}`
     }
   });
-  return resp.data.map((e: { beatmap_id: number }) => e.beatmap_id);
+  
+  for (const map of resp.data) {
+    dict[map.beatmap_id] = map.count;
+  }
+
+  return dict;
 }
 
-async function getPlayedBeatmapIDs(request_queue: Request[], token: string): Promise<Number[]> {
-  let ids: Number[] = [];
+async function getPlayedBeatmapDict(request_queue: Request[], token: string): Promise<BeatmapPlaycountDict> {
+  let beatmap_playcount_dict: BeatmapPlaycountDict = {};
 
   const promises = request_queue.map(async (r, index) => {
     return new Promise(resolve => {
       setTimeout(async () => {
         console.log(r);
         const res = await getMostPlayedBeatmaps(r, token);
-        ids.push(...res);
+        Object.assign(beatmap_playcount_dict, res);
         resolve(null);
       }, index*100)
     })
   });
   await Promise.all(promises);
-  return ids;
+  return beatmap_playcount_dict;
 }
 
 
 (async () => {
   const user_id = 14852499;
   const token = await getUserOAUTHToken();
-  //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
+  const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
-  //// Since we will be making a lot of requests, it makes sense to queue them
-  //const request_queue = createRequestQueue(user_id, played_beatmap_count);
-  //const played_map_ids = await getPlayedBeatmapIDs(request_queue, token);
+  // Since we will be making a lot of requests, it makes sense to queue them
+  const request_queue = createRequestQueue(user_id, played_beatmap_count);
+  const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
   //console.log(played_map_ids, played_map_ids.length);
-  getUserBeatmapScore(user_id, 1872396, token);
+  //getUserBeatmapScore(user_id, 1872396, token);
+  console.log(beatmap_dict);
 })()
 
