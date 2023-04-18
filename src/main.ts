@@ -183,6 +183,12 @@ async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict,
 
   await client.connect();
 
+  await client.query(`
+    INSERT INTO scores 
+    (user_id, date, max_combo, mods, pp, rank, score, count_50, count_100, count_300) VALUES
+    (1, '2023-01-01T12:34:56.789Z', 100, '{}', 10.0, 1000, 23489274, 0, 20, 1023);
+  `);
+
   //const user_id = 14852499;
   //const token = await getUserOAUTHToken();
   //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
