@@ -1,5 +1,6 @@
 import axios from 'axios';
 import dotenv from 'dotenv';
+import { Client } from 'pg';
 
 interface BeatmapPlaycountDict {
   [key: number]: number;
@@ -13,24 +14,13 @@ interface Request {
 }
 
 interface Beatmap {
-  id: number,
-  url: string,
-  version: string,
-  difficulty: number,
-  last_updated: EpochTimeStamp,
-  status: string,
-  od: number,
-  ar: number,
-  cs: number,
-  hp: number,
-  bpm: number, 
-  count_circles: number,
-  count_sliders: number,
-  count_spinners: number,
+  user_id: number,
+  beatmap_id: number,
+  playcount: number
 }
 
 interface Score {
-  id: number,
+  beatmap_id: number,
   accuracy: number,
   date: EpochTimeStamp,
   max_combo: number,
@@ -95,16 +85,30 @@ function createRequestQueue(user_id: number, played_beatmap_count: number): Requ
   return request_queue;
 }
 
-async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: string) {
+async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: string): Promise<Score | null> {
   try {
-    const resp = await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
+    const score = (await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
       headers: {
         "Authorization": `Bearer ${token}`
       }
-    });
-    return resp.data;
+    })).data.score;
+
+    return {
+        beatmap_id: score.id,
+        accuracy: score.accuracy,
+        date: score.created_at,
+        max_combo: score.max_combo,
+        mods: score.mods.toString(),
+        pp: score.pp,
+        rank: score.rank,
+        score: score.score,
+        count_50: score.statistics.count_50,
+        count_100: score.statistics.count_100,
+        count_300: score.statistics.count_300
+    }
   } catch(err) {
     console.error(`Error: ${beatmap_id}`);
+    return null;
   }
 }
 
@@ -153,7 +157,10 @@ async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict,
       promises.push(new Promise(resolve => {
         setTimeout(async () => {
           const score = await getUserBeatmapScore(user_id, map_id, token);
-          scores.push(score);
+
+          if (score != null)
+            scores.push(score);
+
           resolve(null);
         }, (index++)*100)
       }))
@@ -164,18 +171,20 @@ async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict,
   return scores;
 }
 
-async function getBeatmap(map_id: number, token: string) {
-  const resp = await axios.get(`${API_URL}/beatmaps/lookup?id=${map_id}`, {
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
-  });
-  console.log(resp.data);
-}
-
 (async () => {
-  const user_id = 14852499;
-  const token = await getUserOAUTHToken();
+  
+  const client = new Client({
+    host: 'localhost',
+    port: 5432,
+    database: 'osu_score_compare',
+    user: 'admin',
+    password: 'admin' // Just for testing
+  });
+
+  await client.connect();
+
+  //const user_id = 14852499;
+  //const token = await getUserOAUTHToken();
   //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
   //// Since we will be making a lot of requests, it makes sense to queue them
@@ -187,7 +196,7 @@ async function getBeatmap(map_id: number, token: string) {
   //const scores = getAllUserScores(user_id, beatmap_dict, token);
   //console.log(scores);
   
-  console.log(await getUserBeatmapScore(user_id, 1872396, token));
+  //console.log(await getUserBeatmapScore(user_id, 1872396, token));
 
 
   //console.log(played_map_ids, played_map_ids.length);
