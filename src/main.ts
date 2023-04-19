@@ -13,24 +13,34 @@ interface Request {
   offset: number
 }
 
-interface Beatmap {
-  user_id: number,
-  beatmap_id: number,
-  playcount: number
+
+interface UserBeatmapPlaycount {
+  user_id: number;
+  beatmap_id: number;
+  playcount: number;
 }
 
+
 interface Score {
-  beatmap_id: number,
-  accuracy: number,
-  date: EpochTimeStamp,
-  max_combo: number,
-  mods: string[],
-  pp: number,
-  rank: string,
-  score: number,
-  count_50: number,
-  count_100: number,
-  count_300: number,
+  id: bigint;
+  best_id: bigint;
+  created_at: string; // timestamp with time zone
+  user_id: bigint;
+  max_combo: number;
+  mode: string; // character varying(8)
+  mode_int: number; // smallint
+  mods: string[]; // character varying(2)[]
+  passed: boolean;
+  perfect: boolean;
+  pp: number; // double precision
+  rank: string; // character varying(2)
+  score: bigint;
+  count_50: number;
+  count_100: number;
+  count_300: number;
+  count_katu: number;
+  count_geki: number;
+  count_miss: number;
 }
 
 // Read enviornment variables
@@ -85,27 +95,40 @@ function createRequestQueue(user_id: number, played_beatmap_count: number): Requ
   return request_queue;
 }
 
-async function getUserBeatmapScore(user_id: number, beatmap_id: number, token: string): Promise<Score | null> {
+async function getAllUserScoresFromBeatmap(user_id: number, beatmap_id: number, token: string): Promise<Score[] | null> {
   try {
-    const score = (await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}`, {
+    const score_arr = [];
+    const scores = (await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}/all`, {
       headers: {
         "Authorization": `Bearer ${token}`
       }
-    })).data.score;
+    })).data.scores;
 
-    return {
-        beatmap_id: score.id,
-        accuracy: score.accuracy,
-        date: score.created_at,
+    for (const score of scores) {
+      score_arr.push({
+        id: score.id,
+        best_id: score.best_id,
+        created_at: score.created_at,
+        user_id: score.user_id,
         max_combo: score.max_combo,
-        mods: score.mods.toString(),
+        mode: score.mode,
+        mode_int: score.mode_int,
+        mods: score.mods,
+        passed: score.passed,
+        perfect: score.perfect,
         pp: score.pp,
         rank: score.rank,
         score: score.score,
         count_50: score.statistics.count_50,
         count_100: score.statistics.count_100,
-        count_300: score.statistics.count_300
+        count_300: score.statistics.count_300,
+        count_katu: score.statistics.count_katu,
+        count_geki: score.statistics.count_geki,
+        count_miss: score.statistics.count_miss
+      });
     }
+
+    return score_arr;
   } catch(err) {
     console.error(`Error: ${beatmap_id}`);
     return null;
@@ -144,53 +167,53 @@ async function getPlayedBeatmapDict(request_queue: Request[], token: string): Pr
   return beatmap_playcount_dict;
 }
 
-async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
-  const scores: any[] = [];
-  const promises = [];
-  let index = 0;
-
-  for (const key in map_dict) {
-    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
-    if (true) {
-      const map_id = parseInt(key);
-      const play_count = map_dict[key];
-      promises.push(new Promise(resolve => {
-        setTimeout(async () => {
-          const score = await getUserBeatmapScore(user_id, map_id, token);
-
-          if (score != null)
-            scores.push(score);
-
-          resolve(null);
-        }, (index++)*100)
-      }))
-    }
-  }
-
-  await Promise.all(promises);
-  return scores;
-}
+//async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
+//  const scores: any[] = [];
+//  const promises = [];
+//  let index = 0;
+//
+//  for (const key in map_dict) {
+//    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
+//    if (true) {
+//      const map_id = parseInt(key);
+//      const play_count = map_dict[key];
+//      promises.push(new Promise(resolve => {
+//        setTimeout(async () => {
+//          const score = await getUserBeatmapScore(user_id, map_id, token);
+//
+//          if (score != null)
+//            scores.push(score);
+//
+//          resolve(null);
+//        }, (index++)*100)
+//      }))
+//    }
+//  }
+//
+//  await Promise.all(promises);
+//  return scores;
+//}
 
 (async () => {
   
-  const client = new Client({
-    host: 'localhost',
-    port: 5432,
-    database: 'osu_score_compare',
-    user: 'admin',
-    password: 'admin' // Just for testing
-  });
+  //const client = new Client({
+  //  host: 'localhost',
+  //  port: 5432,
+  //  database: 'osu_score_compare',
+  //  user: 'admin',
+  //  password: 'admin' // Just for testing
+  //});
 
-  await client.connect();
+  //await client.connect();
 
-  await client.query(`
-    INSERT INTO scores 
-    (user_id, date, max_combo, mods, pp, rank, score, count_50, count_100, count_300) VALUES
-    (1, '2023-01-01T12:34:56.789Z', 100, '{}', 10.0, 1000, 23489274, 0, 20, 1023);
-  `);
+  //await client.query(`
+  //  INSERT INTO scores 
+  //  (user_id, date, max_combo, mods, pp, rank, score, count_50, count_100, count_300) VALUES
+  //  (1, '2023-01-01T12:34:56.789Z', 100, '{}', 10.0, 1000, 23489274, 0, 20, 1023);
+  //`);
 
-  //const user_id = 14852499;
-  //const token = await getUserOAUTHToken();
+  const user_id = 14852499;
+  const token = await getUserOAUTHToken();
   //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
   //// Since we will be making a lot of requests, it makes sense to queue them
@@ -202,7 +225,7 @@ async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict,
   //const scores = getAllUserScores(user_id, beatmap_dict, token);
   //console.log(scores);
   
-  //console.log(await getUserBeatmapScore(user_id, 1872396, token));
+  console.log(await getAllUserScoresFromBeatmap(user_id, 1872396, token));
 
 
   //console.log(played_map_ids, played_map_ids.length);
