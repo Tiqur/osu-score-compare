@@ -23,6 +23,7 @@ interface UserBeatmapPlaycount {
 
 interface Score {
   id: bigint;
+  map_id: bigint;
   best_id: bigint;
   created_at: string; // timestamp with time zone
   user_id: bigint;
@@ -95,7 +96,7 @@ function createRequestQueue(user_id: number, played_beatmap_count: number): Requ
   return request_queue;
 }
 
-async function getAllUserScoresFromBeatmap(user_id: number, beatmap_id: number, token: string): Promise<Score[] | null> {
+async function getAllUserScoresFromBeatmap(user_id: number, beatmap_id: bigint, token: string): Promise<Score[] | null> {
   try {
     const score_arr = [];
     const scores = (await axios.get(`${API_URL}/beatmaps/${beatmap_id}/scores/users/${user_id}/all`, {
@@ -107,6 +108,7 @@ async function getAllUserScoresFromBeatmap(user_id: number, beatmap_id: number, 
     for (const score of scores) {
       score_arr.push({
         id: score.id,
+        map_id: beatmap_id,
         best_id: score.best_id,
         created_at: score.created_at,
         user_id: score.user_id,
@@ -167,65 +169,67 @@ async function getPlayedBeatmapDict(request_queue: Request[], token: string): Pr
   return beatmap_playcount_dict;
 }
 
-//async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
-//  const scores: any[] = [];
-//  const promises = [];
-//  let index = 0;
-//
-//  for (const key in map_dict) {
-//    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
-//    if (true) {
-//      const map_id = parseInt(key);
-//      const play_count = map_dict[key];
-//      promises.push(new Promise(resolve => {
-//        setTimeout(async () => {
-//          const score = await getUserBeatmapScore(user_id, map_id, token);
-//
-//          if (score != null)
-//            scores.push(score);
-//
-//          resolve(null);
-//        }, (index++)*100)
-//      }))
-//    }
-//  }
-//
-//  await Promise.all(promises);
-//  return scores;
-//}
+async function getAllUserScores(user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
+  const scores: Score[] = [];
+  const promises = [];
+  let index = 0;
+
+  for (const key in map_dict) {
+    const play_count = map_dict[key];
+
+    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
+    if (true) {
+      const map_id = BigInt(parseInt(key));
+      promises.push(new Promise(resolve => {
+        setTimeout(async () => {
+          const scoreArr = await getAllUserScoresFromBeatmap(user_id, map_id, token);
+          console.log(scoreArr);
+
+          //if (scores != null)
+          //  scores.push(...scoreArr);
+
+          resolve(null);
+        }, (index++)*1000)
+      }))
+    }
+  }
+
+  await Promise.all(promises);
+  return scores;
+}
 
 (async () => {
   
-  //const client = new Client({
-  //  host: 'localhost',
-  //  port: 5432,
-  //  database: 'osu_score_compare',
-  //  user: 'admin',
-  //  password: 'admin' // Just for testing
-  //});
+  const client = new Client({
+    host: 'localhost',
+    port: 5432,
+    database: 'osu_score_compare',
+    user: 'admin',
+    password: 'admin' // Just for testing
+  });
 
-  //await client.connect();
+  await client.connect();
 
   //await client.query(`
   //  INSERT INTO scores 
-  //  (user_id, date, max_combo, mods, pp, rank, score, count_50, count_100, count_300) VALUES
-  //  (1, '2023-01-01T12:34:56.789Z', 100, '{}', 10.0, 1000, 23489274, 0, 20, 1023);
+  //  (id, map_id, best_id, created_at, user_id, max_combo, mode, mode_int, mods, passed, perfect, pp, rank, score, count_50, count_100, count_300, count_katu, count_geki, count_miss) VALUES
+  //  (1, 2819013, 2, '2023-04-20 10:00:00+00', 1234, 300, 'osu', 1, ARRAY['dt', 'hr'], true, false, 400.5, 'A', 1000000, 50, 100, 150, 10, 5, 2);
   //`);
 
   const user_id = 14852499;
   const token = await getUserOAUTHToken();
-  //const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
+  const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
-  //// Since we will be making a lot of requests, it makes sense to queue them
-  //const request_queue = createRequestQueue(user_id, played_beatmap_count);
+  // Since we will be making a lot of requests, it makes sense to queue them
+  const request_queue = createRequestQueue(user_id, played_beatmap_count);
 
-  //// Return dictionary of ids ( key ) and play_count ( so it can be cached and compared against in future requests to determin if we should requst more user scores for that particular beatmap )
-  //const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
+  // Return dictionary of ids ( key ) and play_count ( so it can be cached and compared against in future requests to determin if we should requst more user scores for that particular beatmap )
+  const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
 
-  //const scores = getAllUserScores(user_id, beatmap_dict, token);
-  //console.log(scores);
+  const scores = getAllUserScores(user_id, beatmap_dict, token);
+  console.log(scores);
   
-  console.log(await getAllUserScoresFromBeatmap(user_id, 1872396, token));
+  console.log(await getAllUserScoresFromBeatmap(user_id, BigInt(252238), token));
 
 
   //console.log(played_map_ids, played_map_ids.length);
