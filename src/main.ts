@@ -170,13 +170,12 @@ async function getPlayedBeatmapDict(request_queue: Request[], token: string): Pr
 }
 
 async function insertUserScore(client: Client, score: Score) {
+  let modsArray = score.mods.length ? `ARRAY[${score.mods.map(mod => `'${mod}'`).join(', ')}]` : 'ARRAY[]';
   await client.query(`
     INSERT INTO scores 
     (id, map_id, best_id, created_at, user_id, max_combo, mode, mode_int, mods, passed, perfect, pp, rank, score, count_50, count_100, count_300, count_katu, count_geki, count_miss) VALUES
-    (${score.id}, ${score.map_id}, ${score.best_id}, '${score.created_at}', ${score.user_id}, ${score.max_combo}, '${score.mode}', ${score.mode_int}, ARRAY[${score.mods.map(mod => `'${mod}'`).join(', ')}], ${score.passed}, ${score.perfect}, ${score.pp}, '${score.rank}', ${score.score}, ${score.count_50}, ${score.count_100}, ${score.count_300}, ${score.count_katu}, ${score.count_geki}, ${score.count_miss});
+    (${score.id}, ${score.map_id}, ${score.best_id}, '${score.created_at}', ${score.user_id}, ${score.max_combo}, '${score.mode}', ${score.mode_int}, ARRAY[${modsArray}]::varchar(2)[], ${score.passed}, ${score.perfect}, ${score.pp}, '${score.rank}', ${score.score}, ${score.count_50}, ${score.count_100}, ${score.count_300}, ${score.count_katu}, ${score.count_geki}, ${score.count_miss});
   `);
-
-  console.log(`Inserted ${score}`);
 }
 
 async function insertAllUserScores(client: Client, user_id: number, map_dict: BeatmapPlaycountDict, token: string) {
@@ -239,13 +238,13 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
       created_at TIMESTAMP WITH TIME ZONE NOT NULL,
       user_id BIGINT NOT NULL,
       max_combo INTEGER NOT NULL,
-      mode CHARACTER VARYING(8) NOT NULL,
+      mode VARCHAR(8) NOT NULL,
       mode_int SMALLINT NOT NULL,
-      mods CHARACTER VARYING(2)[] NOT NULL,
+      mods VARCHAR(2)[] NOT NULL,
       passed BOOLEAN NOT NULL,
       perfect BOOLEAN NOT NULL,
       pp DOUBLE PRECISION NOT NULL,
-      rank CHARACTER VARYING(2) NOT NULL,
+      rank VARCHAR(2) NOT NULL,
       score BIGINT NOT NULL,
       count_50 INTEGER NOT NULL,
       count_100 INTEGER NOT NULL,
