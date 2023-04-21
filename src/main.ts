@@ -207,10 +207,18 @@ async function queryBeatmapPlayCount(client: Client, user_id: number, beatmap_id
 }
 
 async function updateBeatmapPlayCount(client: Client, user_id: number, beatmap_id: bigint, new_playcount: number) {
-  await client.query(`
+  return await client.query(`
     UPDATE user_beatmap_playcount
     SET playcount = ${new_playcount}
     WHERE beatmap_id = ${beatmap_id} AND
+    user_id = ${user_id};
+  `);
+}
+
+async function deleteAllUserScoresForBeatmap(client: Client, user_id: number, beatmap_id: bigint) {
+  return await client.query(`
+    DELETE FROM scores
+    WHERE map_id = ${beatmap_id} AND
     user_id = ${user_id};
   `);
 }
@@ -231,9 +239,13 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
         // Do nothing
         continue;
       } else {
-        // Update playcount and score
+        // Update playcount
         console.log("Updating playcount for:", map_id);
+        promises.push(updateBeatmapPlayCount(client, user_id, map_id, play_count));
+
+        // Delete all scores in db for map + user ( Next block of code will update it )
         console.log("Updating score for:", map_id);
+        await deleteAllUserScoresForBeatmap(client, user_id, map_id);
       }
     } else {
       await insertBeatmap(client, user_id, map_id, play_count);
@@ -317,7 +329,7 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
   const user_id = 14852499;
   const token = await getUserOAUTHToken();
   const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
-  updateBeatmapPlayCount(client, user_id, BigInt(350), 500);
+  await deleteAllUserScoresForBeatmap(client, user_id, BigInt(350));
 
   // Since we will be making a lot of requests, it makes sense to queue them
   //const request_queue = createRequestQueue(user_id, played_beatmap_count);
