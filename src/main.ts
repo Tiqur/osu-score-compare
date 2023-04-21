@@ -14,13 +14,6 @@ interface Request {
 }
 
 
-interface UserBeatmapPlaycount {
-  user_id: number;
-  beatmap_id: number;
-  playcount: number;
-}
-
-
 interface Score {
   id: bigint;
   map_id: bigint;
@@ -285,7 +278,7 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
                 await insertUserScore(client, score);
 
           resolve(null);
-        }, (index++)*500)
+        }, (index++)*400)
       }))
     }
   }
@@ -329,7 +322,7 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
       mods VARCHAR(2)[] NOT NULL,
       passed BOOLEAN NOT NULL,
       perfect BOOLEAN NOT NULL,
-      pp DOUBLE PRECISION NOT NULL,
+      pp DOUBLE PRECISION,
       rank VARCHAR(2) NOT NULL,
       score BIGINT NOT NULL,
       count_50 INTEGER NOT NULL,
@@ -341,14 +334,8 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
     );
   `);
 
-//  await client.query(`
-//    INSERT INTO scores 
-//    (id, map_id, best_id, created_at, user_id, max_combo, mode, mode_int, mods, passed, perfect, pp, rank, score, count_50, count_100, count_300, count_katu, count_geki, count_miss) VALUES
-//    (1, 2819013, 2, '2023-04-20 10:00:00+00', 1234, 300, 'osu', 1, ARRAY['dt', 'hr'], true, false, 400.5, 'A', 1000000, 50, 100, 150, 10, 5, 2);
-//  `);
-  
 
-  const user_id = 18225483;
+  const user_id = 14852499;
   const token = await getUserOAUTHToken();
   const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
