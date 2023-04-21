@@ -169,6 +169,24 @@ async function getPlayedBeatmapDict(request_queue: Request[], token: string): Pr
   return beatmap_playcount_dict;
 }
 
+async function scoreExists(client: Client, score_id: bigint): Promise<boolean> {
+  const res = await client.query(`
+    SELECT 1
+    FROM scores
+    WHERE id = ${score_id};
+  `);
+  return res.rowCount >= 1
+}
+async function beatmapExistsForUser(client: Client, user_id: number, map_id: bigint): Promise<boolean> {
+  const res = await client.query(`
+    SELECT 1
+    FROM user_beatmap_playcount
+    WHERE user_id = ${user_id} AND
+    beatmap_id = ${map_id};
+  `);
+  return res.rowCount >= 1
+}
+
 async function insertUserScore(client: Client, score: Score) {
   console.log(`Inserting scores for map_id: ${score.map_id}`);
   let modsArray = score.mods.length ? `ARRAY[${score.mods.map(mod => `'${mod}'`).join(', ')}]` : 'ARRAY[]';
@@ -200,7 +218,7 @@ async function queryBeatmapPlayCount(client: Client, user_id: number, beatmap_id
     if (!res.rows[0])
       throw new Error("No results");
 
-    return res.rows[0];
+    return res.rows[0].playcount;
   } catch(err) {
     return null;
   }
@@ -230,12 +248,15 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
   for (const key in map_dict) {
     const map_id = BigInt(parseInt(key));
     const play_count = map_dict[key];
-    const current_playcount_in_db = await queryBeatmapPlayCount(client, user_id, BigInt(2059));
+    const exists = await beatmapExistsForUser(client, user_id, map_id);
 
 
     // If exists in db
-    if (current_playcount_in_db) {
+    if (exists) {
+      const current_playcount_in_db = await queryBeatmapPlayCount(client, user_id, map_id);
+      console.log(current_playcount_in_db);
       if (current_playcount_in_db == play_count) {
+        console.log("Playcount is equal, continuing...");
         // Do nothing
         continue;
       } else {
@@ -260,10 +281,11 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
           // Later on insert multiple scores at once
           if (scoreArr != null)
             for (const score of scoreArr)
-              await insertUserScore(client, score);
+              if (!(await scoreExists(client, score.id)))
+                await insertUserScore(client, score);
 
           resolve(null);
-        }, (index++)*1000)
+        }, (index++)*500)
       }))
     }
   }
@@ -326,19 +348,18 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
 //  `);
   
 
-  const user_id = 14852499;
+  const user_id = 18225483;
   const token = await getUserOAUTHToken();
   const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
-  await deleteAllUserScoresForBeatmap(client, user_id, BigInt(350));
 
   // Since we will be making a lot of requests, it makes sense to queue them
-  //const request_queue = createRequestQueue(user_id, played_beatmap_count);
+  const request_queue = createRequestQueue(user_id, played_beatmap_count);
 
-  //// Return dictionary of ids ( key ) and play_count ( so it can be cached and compared against in future requests to determin if we should requst more user scores for that particular beatmap )
-  //const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
+  // Return dictionary of ids ( key ) and play_count ( so it can be cached and compared against in future requests to determin if we should requst more user scores for that particular beatmap )
+  const beatmap_dict = await getPlayedBeatmapDict(request_queue, token);
 
-  //await insertAllUserScores(client, user_id, beatmap_dict, token);
-  //console.log("Done!");
+  await insertAllUserScores(client, user_id, beatmap_dict, token);
+  console.log("Done!");
 
 })()
 
