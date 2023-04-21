@@ -242,12 +242,13 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
     const map_id = BigInt(parseInt(key));
     const play_count = map_dict[key];
     const exists = await beatmapExistsForUser(client, user_id, map_id);
+    let should_create_beatmap_playcount_map = false;
 
 
+    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
     // If exists in db
     if (exists) {
       const current_playcount_in_db = await queryBeatmapPlayCount(client, user_id, map_id);
-      console.log(current_playcount_in_db);
       if (current_playcount_in_db == play_count) {
         console.log("Playcount is equal, continuing...");
         // Do nothing
@@ -262,25 +263,26 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
         await deleteAllUserScoresForBeatmap(client, user_id, map_id);
       }
     } else {
-      await insertBeatmap(client, user_id, map_id, play_count);
+      should_create_beatmap_playcount_map = true;
     }
 
-    // Do some logic here later on to determine if we should fetch scores ( if playcount has changed )
-    if (true) {
-      promises.push(new Promise(resolve => {
-        setTimeout(async () => {
-          const scoreArr = await getAllUserScoresFromBeatmap(user_id, map_id, token);
+    promises.push(new Promise(resolve => {
+      setTimeout(async () => {
+        const scoreArr = await getAllUserScoresFromBeatmap(user_id, map_id, token);
 
-          // Later on insert multiple scores at once
-          if (scoreArr != null)
-            for (const score of scoreArr)
-              if (!(await scoreExists(client, score.id)))
-                await insertUserScore(client, score);
+        // Insert beatmap map
+        if (should_create_beatmap_playcount_map)
+          await insertBeatmap(client, user_id, map_id, play_count);
 
-          resolve(null);
-        }, (index++)*400)
-      }))
-    }
+        // Later on insert multiple scores at once
+        if (scoreArr != null)
+          for (const score of scoreArr)
+            if (!(await scoreExists(client, score.id)))
+              await insertUserScore(client, score);
+
+        resolve(null);
+      }, (index++)*400)
+    }))
   }
 
   await Promise.all(promises);
