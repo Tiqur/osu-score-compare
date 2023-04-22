@@ -20,7 +20,6 @@ interface Score {
   best_id: bigint;
   created_at: string; // timestamp with time zone
   user_id: bigint;
-  accuracy: number;
   max_combo: number;
   mode: string; // character varying(8)
   mode_int: number; // smallint
@@ -106,7 +105,6 @@ async function getAllUserScoresFromBeatmap(user_id: number, beatmap_id: bigint, 
         best_id: score.best_id,
         created_at: score.created_at,
         user_id: score.user_id,
-        accuracy: score.accuracy,
         max_combo: score.max_combo,
         mode: score.mode,
         mode_int: score.mode_int,
@@ -187,8 +185,8 @@ async function insertUserScore(client: Client, score: Score) {
   let modsArray = score.mods.length ? `ARRAY[${score.mods.map(mod => `'${mod}'`).join(', ')}]` : 'ARRAY[]';
   await client.query(`
     INSERT INTO scores 
-    (id, map_id, best_id, created_at, user_id, accuracy, max_combo, mode, mode_int, mods, passed, perfect, pp, rank, score, count_50, count_100, count_300, count_katu, count_geki, count_miss) VALUES
-    (${score.id}, ${score.map_id}, ${score.best_id}, '${score.created_at}', ${score.user_id}, ${score.accuracy}, ${score.max_combo}, '${score.mode}', ${score.mode_int}, ARRAY[${modsArray}]::varchar(2)[], ${score.passed}, ${score.perfect}, ${score.pp}, '${score.rank}', ${score.score}, ${score.count_50}, ${score.count_100}, ${score.count_300}, ${score.count_katu}, ${score.count_geki}, ${score.count_miss});
+    (id, map_id, best_id, created_at, user_id, max_combo, mode, mode_int, mods, passed, perfect, pp, rank, score, count_50, count_100, count_300, count_katu, count_geki, count_miss) VALUES
+    (${score.id}, ${score.map_id}, ${score.best_id}, '${score.created_at}', ${score.user_id}, ${score.max_combo}, '${score.mode}', ${score.mode_int}, ARRAY[${modsArray}]::varchar(2)[], ${score.passed}, ${score.perfect}, ${score.pp}, '${score.rank}', ${score.score}, ${score.count_50}, ${score.count_100}, ${score.count_300}, ${score.count_katu}, ${score.count_geki}, ${score.count_miss});
   `);
 }
 
@@ -284,7 +282,7 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
 
 
         resolve(null);
-      }, (index++)*500)
+      }, (index++)*400)
     }))
   }
 
@@ -321,7 +319,6 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
       best_id BIGINT NOT NULL,
       created_at TIMESTAMP WITH TIME ZONE NOT NULL,
       user_id BIGINT NOT NULL,
-      accuracy FLOAT NOT NULL,
       max_combo INTEGER NOT NULL,
       mode VARCHAR(8) NOT NULL,
       mode_int SMALLINT NOT NULL,
@@ -341,7 +338,7 @@ async function insertAllUserScores(client: Client, user_id: number, map_dict: Be
   `);
 
 
-  const user_id = 14852499;
+  const user_id = 15427342;
   const token = await getUserOAUTHToken();
   const played_beatmap_count = await getPlayedBeatmapCount(user_id, token);
 
